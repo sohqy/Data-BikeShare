@@ -39,6 +39,7 @@ def copydata(month,year):
     return data
 
 def split_train(data, cutoff):
+    """This splits the training data set into two, based on cutoff day"""
     splittrain = data[data['Day'] <= cutoff]
     splittest = data[data['Day'] > cutoff]
     
@@ -63,30 +64,35 @@ def set_up_data(featurenames, data):
         
 def splittrain_validation(model, featurenames):
     """Function iterates over PRIOR ONLY data, for validating model through a split
-    training data. """
+    training data. 
+    model - model name and parameters
+    featurenames - list of features to be included into ML model"""
     months = range(1,13)
     years = [2011,2012]
     score = np.zeros([2,12])
     
     for i in years:
         for j in months:
+        # Make a copy of the relevant prior data and split up training data
             data = copydata(j,i)
             splittrain, splittest = split_train(data , 15)
-    
+        # Set up training/testing data.
             x_train, y_train_r, y_train_c = set_up_data(featurenames, splittrain)
             x_test, y_ar, y_ac = set_up_data(featurenames, splittest)
-    
+        # Fit and predict model for registered users
             M_r = model.fit(x_train, y_train_r)
             y_pr = np.exp(M_r.predict(x_test)) - 1
-            
+        # Fit and predict model for casual users
             M_c = model.fit(x_train, y_train_c)                              
             y_pc = np.exp(M_c.predict(x_test)) - 1
-            
+        # Combine predicted numbers, ensuring that the number is an integer. 
+        # Negative numbers below 1 are set to 0.
             y_pcomb = np.round(y_pr + y_pc)
             y_pcomb[y_pcomb < 0] = 0
-            
+        # Transforming back to rental count numbers from logarithmic scale
             y_acomb = np.exp(y_ar) + np.exp(y_ac) - 2
     
+        # Assess the accuracy of the model using the RMSLE defined 
             score[years.index(i),months.index(j)] = rmsle(y_pcomb, y_acomb)
     
     return score
